@@ -124,6 +124,8 @@
   let writer = null;
   let reader = null;
   let readLoopDone = null;
+  let keepReading = false;   // false にすると readLoop の外側ループが止まる
+  let closing = false;       // cleanup の再入防止
   const encoder = new TextEncoder();
   // 送信chを FIFO で応答行に対応付ける(応答にch識別子が無いため)
   const pending = [];
@@ -256,7 +258,7 @@
     const decoder = new TextDecoder();
     let buf = "";
     try {
-      while (port && port.readable) {
+      while (port && port.readable && keepReading) {
         reader = port.readable.getReader();
         try {
           while (true) {
@@ -287,6 +289,7 @@
       await port.open({ baudRate: 115200 });
       writer = port.writable.getWriter();
       pending.length = 0;
+      keepReading = true;
       readLoopDone = readLoop();
       statusEl.textContent = "接続中"; statusEl.className = "on";
       connectBtn.disabled = true;
@@ -305,6 +308,9 @@
   }
 
   async function cleanup() {
+    if (closing) return;   // 再入防止(Disconnectボタンとdisconnectイベントの競合対策)
+    closing = true;
+    keepReading = false;   // 先に外側ループを止めてから reader を cancel(再周回での再ロックを防ぐ)
     try { if (reader) await reader.cancel(); } catch (_) {}
     try { if (writer) { writer.releaseLock(); } } catch (_) {}
     writer = null;
@@ -317,6 +323,7 @@
     connectBtn.disabled = false;
     disconnectBtn.disabled = true;
     setControlsEnabled(false);
+    closing = false;
   }
 
   // ---- init ----
