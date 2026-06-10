@@ -31,15 +31,22 @@ void processCommand(const String &cmd) {
   char c0 = cmd[0];
 
   // --- チャネル・引数の分離 ---
-  int ch;
+  // 文法: <コマンド文字>[チャネル1-3][ <角度>]  角度は必ずスペース区切り
+  int ch = 0;
+  unsigned int pos = 1;
+  if (cmd.length() > pos && cmd[pos] >= '1' && cmd[pos] <= '3') {
+    ch = cmd[pos] - '1';
+    ++pos;
+  }
   String arg;
-  if (cmd.length() >= 2 && (cmd[1] == '2' || cmd[1] == '3')
-      && (cmd.length() == 2 || !(cmd[2] >= '0' && cmd[2] <= '9'))) {
-    ch = cmd[1] - '1';
-    arg = cmd.substring(2);
-  } else {
-    ch = 0;
-    arg = cmd.substring(1);
+  if (cmd.length() > pos) {
+    if (cmd[pos] != ' ') {
+      Serial.print("ERR: use <cmd>[1-3] [angle]: ");
+      Serial.println(cmd);
+      return;
+    }
+    arg = cmd.substring(pos + 1);
+    arg.trim();
   }
 
   // --- コマンド分岐 ---
@@ -70,6 +77,11 @@ void processCommand(const String &cmd) {
       Serial.println(angleClosed[ch]);
     }
   } else if (c0 == 'a' || c0 == 'A') {
+    if (arg.length() == 0) {
+      Serial.print("ERR: angle required: ");
+      Serial.println(cmd);
+      return;
+    }
     int angle = parseAngle(arg);
     setServoAngle(ch, angle);
     Serial.println(currentAngle[ch]);
@@ -84,13 +96,12 @@ void processCommand(const String &cmd) {
 void setup() {
   Serial.begin(115200);
   for (int i = 0; i < NUM_CHANNELS; ++i) {
+    // attach() はデフォルトで1500us(=90°)を出すため、直後に閉位置を書いてジャンプを抑える
     servos[i].attach(SERVO_PINS[i]);
-  }
-  delay(500);
-  for (int i = 0; i < NUM_CHANNELS; ++i) {
     setServoAngle(i, angleClosed[i]);
   }
   Serial.println("READY (3ch servo shutter)");
+  Serial.println("cmd: <o|c|O|C|a|q>[ch1-3][ angle]  e.g. o2 / O1 / A2 90 / C3 10 / q2");
 }
 
 void loop() {

@@ -20,8 +20,6 @@ pio device monitor -b 115200
 ## Architecture
 
 - `src/main.cpp` — メインファームウェア（3ch サーボシャッター）
-- `src/shut.cpp` + `include/shut.h` — LCD＋モードスイッチ版の別ファームウェア（スコープ外）
-- PlatformIO が `src/` 配下の全 `.cpp` を同時コンパイル。`shut.cpp` のシンボルは全て `static` / `const`
 
 ## Git Rules
 
