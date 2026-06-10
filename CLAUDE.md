@@ -20,6 +20,7 @@ pio device monitor -b 115200
 ## Architecture
 
 - `src/main.cpp` — メインファームウェア（3ch サーボシャッター）
+- `gui/index.html` — ホスト側 動作確認 GUI（Web Serial、単一HTML・依存なし。Chrome/Edge で開く）
 
 ## Git Rules
 
