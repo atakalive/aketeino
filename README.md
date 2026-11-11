@@ -12,6 +12,7 @@ open/close shutter actions. The project is managed with [PlatformIO](https://pla
 - Open / close angles **configurable at runtime over serial**
 - Simple single-character serial command protocol (115200 baud)
 - Bundled **test GUI** — a single HTML file with no dependencies (Web Serial)
+- **CLI** for terminals, scripts, and LLM agents such as Claude Code
 
 ## Requirements
 
@@ -19,6 +20,7 @@ open/close shutter actions. The project is managed with [PlatformIO](https://pla
 - Up to 3 servo motors
 - PlatformIO (`pio` CLI, or PlatformIO IDE / VS Code extension)
 - For the GUI: Chrome or Edge (a browser with Web Serial API support)
+- For the CLI: Python 3.9+ and pyserial (or uv)
 
 ## Bill of Materials (BOM)
 
@@ -172,12 +174,75 @@ for testing (uses the Web Serial API). Most of the GUI text is in Japanese (ther
    (the COM port is held exclusively by one process).
 4. On Connect, the board may reset and print the READY banner.
 
+## CLI
+
+[cli/aketeino.py](cli/aketeino.py) drives the board from a terminal. Each call opens the port, sends
+the command(s), waits for each reply, prints the result, and exits, so scripts and LLM agents such as
+Claude Code can operate the shutter and read its state with ordinary shell commands.
+
+It needs Python 3.9+ and [pyserial](https://pypi.org/project/pyserial/) (`python -m pip install pyserial`).
+With [uv](https://docs.astral.sh/uv/), `uv run cli/aketeino.py ...` installs pyserial automatically.
+
+```bash
+python cli/aketeino.py ports            # list serial ports (the Nano R4 is marked [Nano R4])
+python cli/aketeino.py status           # angle, open/close angles and state of every channel
+python cli/aketeino.py open 2           # open CH2
+python cli/aketeino.py close all        # close CH1, CH2 and CH3
+python cli/aketeino.py move 1 45        # move CH1 to 45°
+python cli/aketeino.py set-open 1 120   # set CH1's open angle to 120° and move there
+python cli/aketeino.py set-close 3 10   # set CH3's close angle to 10° and move there
+python cli/aketeino.py raw q1 "A2 90"   # send firmware command lines as-is
+python cli/aketeino.py --help           # full usage, exit codes and notes
+```
+
+| CLI | Firmware command sent |
+| --- | --------------------- |
+| `open <ch>...` | `o` |
+| `close <ch>...` | `c` |
+| `move <ch> <angle>` | `A <angle>` |
+| `set-open <ch> <angle>` | `O <angle>` |
+| `set-close <ch> <angle>` | `C <angle>` |
+| `status [<ch>...]` | `s` (all channels when `ch` is omitted) |
+| `raw <line>...` | the line as-is (1–16 printable ASCII characters) |
+
+- Channels are `1`, `2`, `3` or `all`; angles are integers 0–180. Anything else is rejected before
+  anything is sent (the firmware itself would clamp it or treat it as 0 silently).
+- Output is one line per result, e.g. `CH2: 90`. `status` prints:
+  ```text
+  port: COM5
+  CH1: 90 (open) open=90 close=0
+  CH2: 0 (closed) open=90 close=0
+  CH3: 45 (other) open=120 close=10
+  ```
+  The state is `open` when the angle equals the open angle, `closed` when it equals the close angle,
+  and `other` otherwise. The angles are the last commanded ones, not measured servo positions.
+- `--json` prints `{"port": "COM5", "results": [...]}`. On failure it prints the results so far plus
+  `"error": {"code": ..., "message": ...}`.
+- Requests run in order and stop at the first failure. Errors go to stderr with a hint on what to do.
+- Port: `--port COM5`, else the `AKETEINO_PORT` environment variable, else the only connected Nano R4
+  (USB VID 2341 / PID 0074). If none or more than one is found, pass `--port`.
+- **Close the GUI and `pio device monitor` before using the CLI** (the COM port is held exclusively by
+  one process). The CLI cannot open a port that another program holds.
+- `status` needs firmware with the `s` command. With older firmware it tells you to upload
+  (`pio run --target upload`).
+
+| Exit code | Meaning |
+| --------- | ------- |
+| 0 | Success |
+| 1 | The board replied `ERR` / `UNKNOWN CMD`, or an unexpected reply |
+| 2 | Bad arguments (nothing was sent) |
+| 3 | Port not found, cannot be opened, or lost (e.g. the board reset) |
+| 4 | No reply in time (`--timeout`, default 2 s) |
+
+The tests run without a board: `python -m unittest discover -s cli -v`.
+
 ## Project Structure
 
 ```text
 aketeino/
 ├── src/main.cpp       … Main firmware (3ch servo shutter)
 ├── gui/index.html     … Host-side test GUI (Web Serial, single HTML, no dependencies)
+├── cli/               … Host-side CLI (aketeino.py, pyserial) and its tests
 ├── platformio.ini     … PlatformIO config (env: nano_r4)
 ├── simple-pinout.png  … Nano R4 pinout diagram (by Arduino, CC BY-SA 4.0)
 ├── CLAUDE.md          … Development rules for Claude Code
