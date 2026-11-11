@@ -87,6 +87,13 @@ void processCommand(const String &cmd) {
     Serial.println(currentAngle[ch]);
   } else if (c0 == 'q' || c0 == 'Q') {
     Serial.println(currentAngle[ch]);
+  } else if (c0 == 's' || c0 == 'S') {
+    // 状態照会: "<現在角度> <開角度> <閉角度>" を1行で返す
+    Serial.print(currentAngle[ch]);
+    Serial.print(' ');
+    Serial.print(angleOpen[ch]);
+    Serial.print(' ');
+    Serial.println(angleClosed[ch]);
   } else {
     Serial.print("UNKNOWN CMD: ");
     Serial.println(cmd);
@@ -101,7 +108,7 @@ void setup() {
     setServoAngle(i, angleClosed[i]);
   }
   Serial.println("READY (3ch servo shutter)");
-  Serial.println("cmd: <o|c|O|C|a|q>[ch1-3][ angle]  e.g. o2 / O1 / A2 90 / C3 10 / q2");
+  Serial.println("cmd: <o|c|O|C|a|q|s>[ch1-3][ angle]  e.g. o2 / O1 / A2 90 / C3 10 / q2 / s2");
 }
 
 void loop() {

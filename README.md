@@ -101,6 +101,7 @@ pio device monitor -b 115200
 | `C [angle]` | **Set the close angle** and move (without an angle, just moves to the current close angle) |
 | `a` / `A` `<angle>` | Move to an arbitrary angle (angle required; otherwise `ERR: angle required`) |
 | `q` / `Q` | Query the current angle |
+| `s` / `S` | Query the status: current angle, open angle, and close angle |
 
 - Defaults: **open = 90° / close = 0°**
 - Angle range is 0–180 (out-of-range values are clamped; non-numeric values are treated as 0)
@@ -115,10 +116,12 @@ pio device monitor -b 115200
 | `A2 90` | Move CH2 to 90° |
 | `C3 10` | Set CH3 close angle to 10° and move |
 | `q2` | Query CH2's current angle |
+| `s2` | Query CH2's status (e.g. `90 90 0`) |
 
 ### Responses
 
 - On success: a **bare number** (the current angle, or the angle that was set)
+- `s` / `S` on success: **three numbers separated by single spaces** — `<current angle> <open angle> <close angle>` (e.g. `90 90 0`)
 - On error: `ERR: ...`
 - On unknown command: `UNKNOWN CMD: ...`
 
@@ -128,7 +131,7 @@ The open/close commands **behave differently in lowercase vs uppercase**. Don't 
 
 - `o` / `c` (lowercase) … **move only** (to the configured open/close angle)
 - `O` / `C` (uppercase) … **set the angle, then move**
-- However, `a` / `A` and `q` / `Q` are **identical regardless of case**
+- However, `a` / `A`, `q` / `Q`, and `s` / `S` are **identical regardless of case**
 
 ## Startup Behavior
 
@@ -140,7 +143,7 @@ After startup, the following banner is printed to serial:
 
 ```text
 READY (3ch servo shutter)
-cmd: <o|c|O|C|a|q>[ch1-3][ angle]  e.g. o2 / O1 / A2 90 / C3 10 / q2
+cmd: <o|c|O|C|a|q|s>[ch1-3][ angle]  e.g. o2 / O1 / A2 90 / C3 10 / q2 / s2
 ```
 
 ## Limitations & Notes
@@ -148,12 +151,12 @@ cmd: <o|c|O|C|a|q>[ch1-3][ angle]  e.g. o2 / O1 / A2 90 / C3 10 / q2
 - A line is **at most 16 characters** (excess is truncated).
 - The channel is **a single digit only**. Inputs like `o12`, where the character right after the
   command/channel is neither a space nor end-of-line, result in `ERR`.
-- An argument mistakenly appended to `o` / `c` / `q` is **ignored**.
+- An argument mistakenly appended to `o` / `c` / `q` / `s` is **ignored**.
 - Responses **do not include a channel identifier**. The GUI (below) maps each response line back
   to the channel that was sent, in FIFO (send) order.
 - Open/close angles are **held in RAM only**. After a reset or power cycle they return to the
   defaults (open 90° / close 0°).
-- `q` / `Q` returns the **last commanded angle**, not a measured servo position.
+- The current angle returned by `q` / `Q` and `s` / `S` is the **last commanded angle**, not a measured servo position.
 
 ## Test GUI
 
